@@ -105,7 +105,7 @@ export class PriceService {
         if (!priceData.high && !priceData.low) continue;
         
         // Ensure item exists before inserting price (avoid foreign key violation)
-        let existingItem = await prisma.item.findUnique({
+        const existingItem = await prisma.item.findUnique({
           where: { id: itemId },
         });
 
@@ -126,8 +126,23 @@ export class PriceService {
               },
             });
           } else {
-            console.warn(`Skipping price insert: Item ID ${itemId} not found in mapping`);
-            continue;
+            // Item ID not found in the initial mapping - force item sync
+            console.warn(
+              `Unknown item ${itemId} encountered during price sync. Attempting item sync...`
+            );
+
+            await PriceService.syncItems();
+
+            const newlySynced = await prisma.item.findUnique({
+              where: { id: itemId },
+            });
+
+            if (!newlySynced) {
+              console.error(
+                `Item ID ${itemId} still missing after sync. Skipping price insert.`
+              );
+              continue;
+            }
           }
         }
 
@@ -309,6 +324,12 @@ export class PriceService {
       minVolume,
       maxVolatility
     );
+
+    if (budget > 100000000) {
+      // For very large budgets, prioritize high ROI opportunities
+      return profitableOpportunities.sort((a, b) => b.roi - a.roi);
+    }
+
     return sortOpportunitiesByScore(profitableOpportunities);
   } catch (error) {
     console.error('Failed to get flip opportunities:', error);
@@ -348,12 +369,14 @@ export class PriceService {
         // and volume constraints rather than artificial caps
         let adjustedQuantity: number;
         
-        if (opportunity.buyLimit === 0) {
-          // Unlimited buy limit - use budget and volume constraints
-          adjustedQuantity = Math.min(
-            Math.floor(remainingBudget / opportunity.currentLow),
-            Math.floor(opportunity.volume * 0.1) // Don't exceed 10% of daily volume
-          );
+          if (opportunity.buyLimit === 0) {
+            // Unlimited buy limit - use budget and volume constraints
+            // Relax the volume cap when we still have a large amount of GP
+            const volumeMultiplier = remainingBudget > budget * 0.5 ? 0.2 : 0.1;
+            adjustedQuantity = Math.min(
+              Math.floor(remainingBudget / opportunity.currentLow),
+              Math.floor(opportunity.volume * volumeMultiplier)
+            );
         } else {
           // Normal buy limit - respect the limit
           adjustedQuantity = Math.min(
@@ -422,7 +445,14 @@ export class PriceService {
    * @param days - Number of days of history to retrieve (default: 7)
    * @returns Historical price data for the item
    */
-  static async getItemHistory(itemId: number, days: number = 7): Promise<any> {
+  static async getItemHistory(
+    itemId: number,
+    days: number = 7
+  ): Promise<{
+    itemId: number;
+    itemName: string;
+    prices: { timestamp: Date; high?: number | null; low?: number | null }[];
+  }> {
     try {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);

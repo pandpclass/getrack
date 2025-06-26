@@ -25,7 +25,7 @@ const API_BASE_URL = 'http://localhost:3001';
  * @param dependencies - Array of values that trigger refetch when changed
  * @returns Object containing data, loading state, and error message
  */
-export function useApi<T>(url: string, dependencies: any[] = []) {
+export function useApi<T>(url: string, dependencies: unknown[] = []) {
   // State for storing the fetched data
   const [data, setData] = useState<T | null>(null);
   
@@ -88,7 +88,7 @@ export function useApi<T>(url: string, dependencies: any[] = []) {
     return () => {
       cancelled = true;
     };
-  }, dependencies); // Re-run when dependencies change
+  }, [url, ...dependencies]); // Re-run when dependencies change
 
   return { data, loading, error };
 }
@@ -104,7 +104,10 @@ export function useApi<T>(url: string, dependencies: any[] = []) {
  * @returns Promise resolving to the response data
  * @throws Error if the request fails or API returns an error
  */
-export async function apiRequest<T>(url: string, options?: any): Promise<T> {
+export async function apiRequest<T>(
+  url: string,
+  options?: Record<string, unknown>
+): Promise<T> {
   const response = await axios.request<ApiResponse<T>>({
     url: `${API_BASE_URL}${url}`,
     ...options,

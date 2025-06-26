@@ -187,15 +187,15 @@ The OSRS Grand Exchange Tracker helps players make data-driven trading decisions
 
 ### Portfolio Suggestions
 ```http
-GET /api/portfolio?budget=10000000
+GET /api/portfolio?budget=10000000&minVolume=0&maxVolatility=50
 ```
-Returns optimized item recommendations with enhanced filtering and scoring.
+Returns optimized item recommendations with advanced filtering. Use `minVolume` (trades/24h) and `maxVolatility` (%) to tune results.
 
 ### Flip Opportunities
 ```http
-GET /api/opportunities?budget=100000000&limit=50
+GET /api/opportunities?budget=100000000&limit=50&minVolume=0&maxVolatility=50
 ```
-Returns all profitable flip opportunities with volume and volatility filtering.
+Returns all profitable flip opportunities. `minVolume` and `maxVolatility` provide additional control over liquidity and risk.
 
 ### Item History
 ```http

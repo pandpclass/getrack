@@ -138,7 +138,7 @@ export class OSRSApiService {
    * @returns Promise resolving to timeseries data
    * @throws Error if the request fails
    */
-  static async fetchTimeseries(itemId: number, timestep: string = '5m'): Promise<any> {
+  static async fetchTimeseries(itemId: number, timestep: string = '5m'): Promise<unknown> {
     try {
       const response = await api.get(`/timeseries?id=${itemId}&timestep=${timestep}`);
       return response.data.data;
@@ -157,7 +157,7 @@ export class OSRSApiService {
    * @returns Promise resolving to volume data
    * @throws Error if the request fails
    */
-  static async fetchVolumes(): Promise<any> {
+  static async fetchVolumes(): Promise<unknown> {
     try {
       const response = await api.get('/5m');
       return response.data.data;
