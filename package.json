@@ -10,7 +10,7 @@
     "build": "vite build",
     "build:server": "tsc -p tsconfig.server.json",
     "lint": "eslint .",
-    "test": "tsx tests/syncPrices.test.ts && tsx tests/historicalSync.test.ts",
+    "test": "tsx tests/syncPrices.test.ts && tsx tests/historicalSync.test.ts && tsx tests/profitableOpportunities.test.ts",
     "preview": "vite preview",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",

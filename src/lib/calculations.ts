@@ -49,6 +49,12 @@ export const PRICE_SPIKE_THRESHOLDS = {
 };
 
 /**
+ * Maximum margin percentage allowed for opportunities
+ * Used to filter out data anomalies and unrealistic ROI
+ */
+export const MAX_MARGIN_PERCENT = 1000;
+
+/**
  * Calculates the raw margin between high and low prices
  * 
  * @param high - Sell price (high price)
@@ -288,6 +294,11 @@ export function filterProfitableOpportunities(
   return opportunities.filter(opp => {
     // Basic profitability filters
     if (opp.profitAfterTax < minProfit || opp.roi < minROI) {
+      return false;
+    }
+
+    // Skip unrealistic opportunities with extremely high margin percentages
+    if (opp.marginPercent > MAX_MARGIN_PERCENT) {
       return false;
     }
 
