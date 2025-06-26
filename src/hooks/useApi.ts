@@ -6,7 +6,11 @@ import { ApiResponse } from '../types/api';
  * Base URL for API requests
  * Configurable via the VITE_API_BASE_URL environment variable
 */
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+// Default to the local API server when the environment variable is not set
+// This matches the behaviour documented in the README so the frontend works
+// out-of-the-box during development.
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
 /**
  * Custom React Hook for API Data Fetching
