@@ -214,6 +214,65 @@ export class PriceService {
   }
 }
 
+  /**
+   * Synchronizes historical prices using the 1h endpoint
+   *
+   * Pulls recent hourly price data for the most traded items to
+   * bootstrap the PriceHistory table. This runs once on startup
+   * or whenever new items without history are detected.
+   */
+  static async syncHistoricalPrices(): Promise<void> {
+    try {
+      const historyDone = process.env.HISTORICAL_SYNC_DONE === 'true';
+
+      // Determine which items don't have any history records yet
+      const items = await prisma.item.findMany({ select: { id: true } });
+      const historyItems = await prisma.priceHistory.findMany({
+        distinct: ['itemId'],
+        select: { itemId: true },
+      });
+      const historySet = new Set(historyItems.map(h => h.itemId));
+      const missingHistory = items.filter(i => !historySet.has(i.id));
+
+      if (historyDone && missingHistory.length === 0) {
+        console.log('Historical sync already performed, skipping');
+        return;
+      }
+
+      console.log('Syncing historical prices...');
+
+      const volumeData = await this.fetchVolumeData();
+      const topIds = Object.entries(volumeData)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 100)
+        .map(([id]) => parseInt(id));
+
+      const targetIds = historyDone
+        ? topIds.filter(id => missingHistory.some(m => m.id === id))
+        : topIds;
+
+      for (const itemId of targetIds) {
+        const records = await OSRSApiService.fetch1hHistory(itemId);
+        const data = records.map(r => ({
+          itemId,
+          avgHigh: r.avgHighPrice ?? null,
+          avgLow: r.avgLowPrice ?? null,
+          volume: (r.highPriceVolume || 0) + (r.lowPriceVolume || 0),
+          date: new Date(r.timestamp * 1000),
+        }));
+
+        if (data.length > 0) {
+          await prisma.priceHistory.createMany({ data });
+        }
+      }
+
+      process.env.HISTORICAL_SYNC_DONE = 'true';
+      console.log('Historical price sync complete');
+    } catch (error) {
+      console.error('Failed to sync historical prices:', error);
+    }
+  }
+
 
   /**
    * Generates trading opportunities with enhanced filtering and scoring

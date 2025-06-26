@@ -128,6 +128,26 @@ export class OSRSApiService {
   }
 
   /**
+   * Fetches 1-hour historical prices for a specific item
+   *
+   * This endpoint returns hourly average high/low prices which are
+   * useful for bootstrapping the database with recent history.
+   *
+   * @param itemId - The item ID to fetch data for
+   * @returns Promise resolving to array of hourly price records
+   */
+  static async fetch1hHistory(itemId: number): Promise<OSRS1hPriceEntry[]> {
+    try {
+      const response = await api.get(`/1h?id=${itemId}`);
+      const data = response.data?.data?.[itemId] || response.data?.data || [];
+      return Array.isArray(data) ? data : Object.values(data);
+    } catch (error) {
+      console.error(`Failed to fetch 1h history for item ${itemId}:`, error);
+      throw new Error(`Failed to fetch 1h history for item ${itemId}`);
+    }
+  }
+
+  /**
    * Fetches historical price data for a specific item
    * 
    * This endpoint provides time-series data for price analysis and

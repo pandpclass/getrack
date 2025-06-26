@@ -64,6 +64,17 @@ export interface OSRSVolumeData {
 }
 
 /**
+ * Hourly historical price entry returned from the /1h endpoint
+ */
+export interface OSRS1hPriceEntry {
+  timestamp: number;
+  avgHighPrice?: number | null;
+  avgLowPrice?: number | null;
+  highPriceVolume?: number;
+  lowPriceVolume?: number;
+}
+
+/**
  * Flip Opportunity Interface
  * 
  * Represents a calculated trading opportunity with all relevant metrics.
