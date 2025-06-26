@@ -205,8 +205,7 @@ await prisma.price.create({
 
       const volume = volumeData[item.id] || 0;
 
-      // DEBUG: Disable volume filtering
-      // if (!hassufficientVolume(volume, latestPrice.high)) continue;
+      if (!hassufficientVolume(volume, latestPrice.high)) continue;
 
       const avgPrice = (latestPrice.high + latestPrice.low) / 2;
       const margin = calculateMargin(latestPrice.high, latestPrice.low);
@@ -227,17 +226,15 @@ await prisma.price.create({
       const volatility = calculateVolatility(recentHighs);
       const riskLevel = getRiskLevel(volatility);
 
-      // DEBUG: Loosen volatility threshold
-      if (volatility > 100) continue;
+      if (volatility > VOLATILITY_THRESHOLDS.EXTREME) continue;
 
-      // DEBUG: Skip anomaly detection
-      // const priceAnalysis = detectPriceAnomalies(
-      //   latestPrice.high,
-      //   latestPrice.low,
-      //   recentHighs,
-      //   recentLows
-      // );
-      // if (!priceAnalysis.isStable) continue;
+      const priceAnalysis = detectPriceAnomalies(
+        latestPrice.high,
+        latestPrice.low,
+        recentHighs,
+        recentLows
+      );
+      if (!priceAnalysis.isStable) continue;
 
       const quantity = calculateOptimalQuantity(
         budget,
@@ -271,7 +268,7 @@ await prisma.price.create({
         volume,
         volatility,
         riskLevel,
-        isStable: true, // hardcoded while skipping anomaly check
+        isStable: priceAnalysis.isStable,
         lastUpdated: latestPrice.timestamp,
       });
     }
