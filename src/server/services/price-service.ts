@@ -12,7 +12,7 @@ import {
   sortOpportunitiesByScore,
   filterProfitableOpportunities,
   getRiskLevel,
-  hassufficientVolume,
+  hasSufficientVolume,
   VOLATILITY_THRESHOLDS,
 } from '../../lib/calculations.js';
 
@@ -321,7 +321,7 @@ export class PriceService {
 
       const volume = volumeData[item.id] || 0;
 
-      if (!hassufficientVolume(volume, latestPrice.high)) continue;
+      if (!hasSufficientVolume(volume, latestPrice.high)) continue;
 
       const avgPrice = (latestPrice.high + latestPrice.low) / 2;
       const margin = calculateMargin(latestPrice.high, latestPrice.low);
