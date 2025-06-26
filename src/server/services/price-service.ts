@@ -147,13 +147,14 @@ await prisma.price.create({
     const processedVolumes: Record<number, number> = {};
 
     for (const [itemIdStr, volumes] of Object.entries(volumeData)) {
-  const itemId = parseInt(itemIdStr);
-  const totalVolume = (volumes.high || 0) + (volumes.low || 0);
+      const itemId = parseInt(itemIdStr);
+      const totalVolume =
+        (volumes.highPriceVolume || 0) + (volumes.lowPriceVolume || 0);
 
-  if (totalVolume > 0) {
-    processedVolumes[itemId] = totalVolume;
-  }
-}
+      if (totalVolume > 0) {
+        processedVolumes[itemId] = totalVolume;
+      }
+    }
 
 
     console.log(`Processed volume data for ${Object.keys(processedVolumes).length} items`);
