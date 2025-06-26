@@ -28,6 +28,8 @@ The OSRS Grand Exchange Tracker helps players make data-driven trading decisions
 - **Item Detail Modals**: Click any item for detailed price history and analysis
 - **Interactive Charts**: Simple SVG-based price trend visualization
 - **Risk Indicators**: Color-coded volatility levels with explanatory tooltips
+- **Budget Slider**: Adjust trading budget quickly with a range slider
+- **Advanced Filters**: Set minimum volume and max volatility for recommendations
 - **GE Slot Management**: Portfolio limited to 8 items (Grand Exchange slot limit)
 - **Responsive Design**: Optimized for desktop, tablet, and mobile devices
 
@@ -113,29 +115,33 @@ The OSRS Grand Exchange Tracker helps players make data-driven trading decisions
 ### Basic Usage
 
 1. **Set Your Budget**
-   - Enter your available GP in the budget input field
+   - Drag the budget slider to choose your trading capital
    - Use preset buttons (100K, 1M, 10M, 100M) for quick selection
    - Budget accepts values up to 2.1B GP (max int32)
 
-2. **View Portfolio Recommendations**
+2. **Adjust Filters (Optional)**
+   - Set a minimum volume requirement with the slider
+   - Limit opportunities above a chosen volatility percentage
+
+3. **View Portfolio Recommendations**
    - The system automatically calculates optimal item selections (max 8 items)
    - See total investment, expected profits, and ROI
    - Review budget utilization and unused funds
    - Items are filtered for liquidity and stability
 
-3. **Analyze Opportunities**
+4. **Analyze Opportunities**
    - Browse the opportunities table for detailed item analysis
    - Sort by composite score (profit + volume + ROI)
    - View buy/sell prices, quantities, and volatility ratings
    - Click any item row for detailed price history and charts
 
-4. **Detailed Item Analysis**
+5. **Detailed Item Analysis**
    - Click on any item to open the detail modal
    - View historical price charts and trends
    - Analyze recent trading data and volatility
    - Select different time periods (1d, 3d, 7d, 14d, 30d)
 
-5. **Refresh Data**
+6. **Refresh Data**
    - Click "Refresh Data" to manually sync latest prices and volumes
    - Data automatically updates every 5 minutes in the background
 
@@ -352,6 +358,13 @@ prisma/
 - Better error handling and graceful degradation
 - Optimized database queries and caching strategies
 - Comprehensive TypeScript type definitions
+
+## 💡 Next Steps
+
+- Add authentication so users can save personal watchlists
+- Provide charts comparing opportunity history over time
+- Expose API parameters for custom volume/volatility thresholds
+- Implement push notifications for high-profit flips
 
 ## 🤝 Contributing
 

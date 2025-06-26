@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { TrendingUp, Database, Zap, RefreshCw } from 'lucide-react';
 import { BudgetInput } from './components/BudgetInput';
+import { AdvancedFilters } from './components/AdvancedFilters';
 import { PortfolioSummary } from './components/PortfolioSummary';
 import { OpportunityTable } from './components/OpportunityTable';
 import { LoadingCard } from './components/LoadingSpinner';
@@ -25,6 +26,8 @@ import { PortfolioSuggestion } from './types/api';
 function App() {
   // State for user's trading budget (default: 10M GP)
   const [budget, setBudget] = useState<number>(10000000);
+  const [minVolume, setMinVolume] = useState<number>(0);
+  const [maxVolatility, setMaxVolatility] = useState<number>(50);
   
   // State for manual refresh loading indicator
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -57,6 +60,15 @@ function App() {
       setIsRefreshing(false);
     }
   }, []);
+
+  const filteredPortfolio = portfolio
+    ? {
+        ...portfolio,
+        opportunities: portfolio.opportunities.filter(
+          (opp) => opp.volume >= minVolume && opp.volatility <= maxVolatility
+        ),
+      }
+    : null;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -98,9 +110,18 @@ function App() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-6">
           {/* Budget Input Component */}
-          <BudgetInput 
-            budget={budget} 
+          <BudgetInput
+            budget={budget}
             onBudgetChange={setBudget}
+            disabled={loading}
+          />
+
+          {/* Advanced Filters */}
+          <AdvancedFilters
+            minVolume={minVolume}
+            onMinVolumeChange={setMinVolume}
+            maxVolatility={maxVolatility}
+            onMaxVolatilityChange={setMaxVolatility}
             disabled={loading}
           />
 
@@ -122,13 +143,13 @@ function App() {
           )}
 
           {/* Portfolio Data Display */}
-          {portfolio && !loading && !error && (
+          {filteredPortfolio && !loading && !error && (
             <>
               {/* Portfolio Summary Cards */}
-              <PortfolioSummary portfolio={portfolio} />
+              <PortfolioSummary portfolio={filteredPortfolio} />
               
               {/* Detailed Opportunities Table */}
-              <OpportunityTable opportunities={portfolio.opportunities} />
+              <OpportunityTable opportunities={filteredPortfolio.opportunities} />
               
               {/* Informational Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
