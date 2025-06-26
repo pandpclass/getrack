@@ -191,7 +191,9 @@ export class PriceService {
     console.log('Fetching volume data from OSRS API...');
     const volumeData = await OSRSApiService.fetch24hVolumes();
 
-    console.log('Raw volume data keys:', Object.keys(volumeData));
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Raw volume data keys:', Object.keys(volumeData));
+    }
 
     const processedVolumes: Record<number, number> = {};
 
