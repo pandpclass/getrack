@@ -91,11 +91,12 @@ export class PriceService {
       console.log('Syncing prices from OSRS API...');
       const prices = await OSRSApiService.fetchLatestPrices();
       // Load item mapping once to handle newly introduced items
-      const itemMapping = await OSRSApiService.fetchItemMapping();
-      const mappingById: Record<number, OSRSItem> = {};
+      let itemMapping = await OSRSApiService.fetchItemMapping();
+      let mappingById: Record<number, OSRSItem> = {};
       for (const item of itemMapping) {
         mappingById[item.id] = item;
       }
+      let mappingRefetched = false;
       
       // Process each item's price data
       for (const [itemIdStr, priceData] of Object.entries(prices)) {
@@ -111,10 +112,34 @@ export class PriceService {
 
         // If item doesn't exist, attempt to create it from the mapping
         if (!existingItem) {
-          const mapped = mappingById[itemId];
+          let mapped = mappingById[itemId];
+          if (!mapped && !mappingRefetched) {
+            console.warn(
+              `Unknown item ${itemId} encountered during price sync. Attempting item sync...`
+            );
+            await PriceService.syncItems();
+            itemMapping = await OSRSApiService.fetchItemMapping();
+            mappingById = {};
+            for (const item of itemMapping) {
+              mappingById[item.id] = item;
+            }
+            mappingRefetched = true;
+            mapped = mappingById[itemId];
+          }
+
           if (mapped) {
-            await prisma.item.create({
-              data: {
+            await prisma.item.upsert({
+              where: { id: mapped.id },
+              update: {
+                name: mapped.name,
+                buyLimit: mapped.limit || 0,
+                icon: mapped.icon,
+                examine: mapped.examine,
+                members: mapped.members || false,
+                lowalch: mapped.lowalch,
+                highalch: mapped.highalch,
+              },
+              create: {
                 id: mapped.id,
                 name: mapped.name,
                 buyLimit: mapped.limit || 0,
@@ -126,23 +151,10 @@ export class PriceService {
               },
             });
           } else {
-            // Item ID not found in the initial mapping - force item sync
-            console.warn(
-              `Unknown item ${itemId} encountered during price sync. Attempting item sync...`
+            console.error(
+              `Item ID ${itemId} still missing after sync. Skipping price insert.`
             );
-
-            await PriceService.syncItems();
-
-            const newlySynced = await prisma.item.findUnique({
-              where: { id: itemId },
-            });
-
-            if (!newlySynced) {
-              console.error(
-                `Item ID ${itemId} still missing after sync. Skipping price insert.`
-              );
-              continue;
-            }
+            continue;
           }
         }
 
