@@ -84,10 +84,21 @@ The OSRS Grand Exchange Tracker helps players make data-driven trading decisions
    ```bash
    # Generate Prisma client
    npm run db:generate
-   
+
    # Create and migrate database
    npm run db:push
    ```
+
+### Setup Script (Optional)
+
+For a one-command setup, run the provided script:
+
+```bash
+./setup.sh
+```
+
+This installs dependencies and runs `npm run db:generate` and `npm run db:push`
+for you.
 
 4. **Configure environment variables**
    Create a `.env` file and set any custom settings.
@@ -115,6 +126,13 @@ The OSRS Grand Exchange Tracker helps players make data-driven trading decisions
    - Frontend: http://localhost:5173
    - Backend API: `VITE_API_BASE_URL` (default http://localhost:3001)
    - Database Studio: `npm run db:studio`
+
+### Troubleshooting
+
+If you see a **"Failed to Load Data"** message in the UI, ensure that:
+
+1. The backend server is running (`npm run dev:server`).
+2. `VITE_API_BASE_URL` is set in your `.env` file **or** the new proxy configuration is enabled so the frontend can reach the API.
 
 ## 📖 How to Use
 
