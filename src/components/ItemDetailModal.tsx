@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, TrendingUp, TrendingDown, Clock, BarChart3, AlertCircle } from 'lucide-react';
 import { useApi } from '../hooks/useApi';
 import { ItemHistory } from '../types/api';
@@ -32,6 +32,34 @@ export function ItemDetailModal({ itemId, onClose }: ItemDetailModalProps) {
     `/api/history/${itemId}?days=${days}`,
     [itemId, days]
   );
+
+  // Determine the subset of history data to display based on selected range
+  const filteredPrices = useMemo(() => {
+    if (!history) return [];
+
+    // Map selected days to a smaller range for the table (in hours)
+    const rangeMap: Record<number, number> = {
+      1: 2, // last 2 hours
+      3: 12, // last 12 hours
+      7: 48, // last 2 days
+      14: 72, // last 3 days
+      30: 120, // last 5 days
+    };
+
+    const hours = rangeMap[days] ?? days * 24;
+    const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
+
+    return history.prices.filter(p => new Date(p.timestamp) >= cutoff);
+  }, [history, days]);
+
+  // Limit table rows by sampling the filtered data
+  const tablePrices = useMemo(() => {
+    const maxRows = 25;
+    if (filteredPrices.length <= maxRows) return filteredPrices;
+
+    const interval = Math.ceil(filteredPrices.length / maxRows);
+    return filteredPrices.filter((_, idx) => idx % interval === 0);
+  }, [filteredPrices]);
 
   // Handle escape key to close modal
   useEffect(() => {
@@ -247,8 +275,8 @@ export function ItemDetailModal({ itemId, onClose }: ItemDetailModalProps) {
                 </div>
                 
                 <div className="flex justify-center">
-                  {history.prices.length > 1 ? (
-                    createPriceChart(history.prices)
+                  {filteredPrices.length > 1 ? (
+                    createPriceChart(filteredPrices)
                   ) : (
                     <div className="text-gray-500 py-8">
                       Insufficient data for chart (need at least 2 data points)
@@ -317,7 +345,7 @@ export function ItemDetailModal({ itemId, onClose }: ItemDetailModalProps) {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {history.prices.slice(0, 10).map((price, index) => (
+                      {tablePrices.map((price, index) => (
                         <tr key={index} className="hover:bg-gray-50">
                           <td className="px-4 py-2 text-sm text-gray-900">
                             <div className="flex items-center">
