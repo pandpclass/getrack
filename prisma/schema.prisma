@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Item {
+  id        Int      @id
+  name      String   @unique
+  buyLimit  Int      @default(0)
+  icon      String?
+  examine   String?
+  members   Boolean  @default(false)
+  lowalch   Int?
+  highalch  Int?
+  prices    Price[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("items")
+}
+
+model Price {
+  id        Int      @id @default(autoincrement())
+  itemId    Int
+  high      Float?
+  low       Float?
+  highTime  DateTime?
+  lowTime   DateTime?
+  timestamp DateTime @default(now())
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, timestamp])
+  @@map("prices")
+}
+
+model PriceHistory {
+  id        Int      @id @default(autoincrement())
+  itemId    Int
+  avgHigh   Float
+  avgLow    Float
+  volume    Int      @default(0)
+  date      DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([itemId, date])
+  @@index([itemId, date])
+  @@map("price_history")
+}

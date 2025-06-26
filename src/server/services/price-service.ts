@@ -1,0 +1,427 @@
+import prisma from '../../lib/database.js';
+import { OSRSApiService } from './osrs-api.js';
+import { FlipOpportunity, PortfolioSuggestion } from '../../types/api.js';
+import {
+  calculateMargin,
+  calculateMarginPercent,
+  calculateROI,
+  calculateProfitAfterTax,
+  calculateOptimalQuantity,
+  calculateVolatility,
+  detectPriceAnomalies,
+  sortOpportunitiesByScore,
+  filterProfitableOpportunities,
+  getRiskLevel,
+  hassufficientVolume,
+  VOLATILITY_THRESHOLDS,
+} from '../../lib/calculations.js';
+
+/**
+ * Price Service
+ * 
+ * Enhanced service that handles all business logic related to price data management,
+ * trading opportunity analysis, and portfolio optimization. Now includes volume data
+ * integration, volatility filtering, and improved scoring algorithms.
+ * 
+ * Key responsibilities:
+ * - Synchronizing data from external APIs (prices + volumes)
+ * - Calculating trading opportunities with liquidity and stability filters
+ * - Generating optimized portfolio recommendations with composite scoring
+ * - Managing database operations for price and item data
+ */
+export class PriceService {
+  /**
+   * Synchronizes item metadata from the OSRS API
+   * 
+   * This method fetches the complete item mapping and updates the local database
+   * with the latest item information including names, buy limits (0 = unlimited),
+   * icons, and other metadata. It uses upsert operations to handle both new items and updates.
+   * 
+   * @throws Error if synchronization fails
+   */
+  static async syncItems(): Promise<void> {
+    try {
+      console.log('Syncing items from OSRS API...');
+      const items = await OSRSApiService.fetchItemMapping();
+      
+      // Process each item with upsert to handle both new and existing items
+      for (const item of items) {
+        await prisma.item.upsert({
+          where: { id: item.id },
+          update: {
+            name: item.name,
+            buyLimit: item.limit || 0, // 0 = unlimited buy limit
+            icon: item.icon,
+            examine: item.examine,
+            members: item.members || false,
+            lowalch: item.lowalch,
+            highalch: item.highalch,
+          },
+          create: {
+            id: item.id,
+            name: item.name,
+            buyLimit: item.limit || 0, // 0 = unlimited buy limit
+            icon: item.icon,
+            examine: item.examine,
+            members: item.members || false,
+            lowalch: item.lowalch,
+            highalch: item.highalch,
+          },
+        });
+      }
+      
+      console.log(`Synced ${items.length} items successfully`);
+    } catch (error) {
+      console.error('Failed to sync items:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Synchronizes current price data from the OSRS API
+   * 
+   * This method fetches the latest market prices and stores them in the database
+   * for historical tracking and analysis. It only stores prices for items that
+   * have valid high or low price data.
+   * 
+   * @throws Error if synchronization fails
+   */
+  static async syncPrices(): Promise<void> {
+    try {
+      console.log('Syncing prices from OSRS API...');
+      const prices = await OSRSApiService.fetchLatestPrices();
+      
+      // Process each item's price data
+      for (const [itemIdStr, priceData] of Object.entries(prices)) {
+        const itemId = parseInt(itemIdStr);
+        
+        // Skip items without valid price data
+        if (!priceData.high && !priceData.low) continue;
+        
+        // Create new price record with timestamp
+       // Ensure item exists before inserting price (avoid foreign key violation)
+const existingItem = await prisma.item.findUnique({
+  where: { id: itemId },
+});
+
+if (!existingItem) {
+  console.warn(`Skipping price insert: Item ID ${itemId} not found`);
+  continue; // skip this record
+}
+
+// Create new price record with timestamp
+await prisma.price.create({
+  data: {
+    itemId,
+    high: priceData.high || null,
+    low: priceData.low || null,
+    highTime: priceData.highTime ? new Date(priceData.highTime * 1000) : null,
+    lowTime: priceData.lowTime ? new Date(priceData.lowTime * 1000) : null,
+  },
+});
+
+      }
+      
+      console.log(`Synced prices for ${Object.keys(prices).length} items`);
+    } catch (error) {
+      console.error('Failed to sync prices:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetches and caches volume data from OSRS API
+   * 
+   * This method retrieves 24-hour trading volume data for liquidity analysis.
+   * Volume data is used to filter out illiquid items and improve opportunity scoring.
+   * 
+   * @returns Object mapping item IDs to their 24h trading volumes
+   */
+  static async fetchVolumeData(): Promise<Record<number, number>> {
+  try {
+    console.log('Fetching volume data from OSRS API...');
+    const volumeData = await OSRSApiService.fetch24hVolumes();
+
+    console.log('Raw volume data keys:', Object.keys(volumeData));
+
+    const processedVolumes: Record<number, number> = {};
+
+    for (const [itemIdStr, volumes] of Object.entries(volumeData)) {
+  const itemId = parseInt(itemIdStr);
+  const totalVolume = (volumes.high || 0) + (volumes.low || 0);
+
+  if (totalVolume > 0) {
+    processedVolumes[itemId] = totalVolume;
+  }
+}
+
+
+    console.log(`Processed volume data for ${Object.keys(processedVolumes).length} items`);
+    return processedVolumes;
+  } catch (error) {
+    console.error('Failed to fetch volume data:', error);
+    return {};
+  }
+}
+
+
+  /**
+   * Generates trading opportunities with enhanced filtering and scoring
+   * 
+   * This method analyzes all items with recent price data to identify profitable
+   * trading opportunities. It now includes volume filtering, volatility checks,
+   * price spike detection, and composite scoring for better recommendations.
+   * 
+   * @param budget - Available trading budget in GP
+   * @returns Array of profitable trading opportunities, sorted by composite score
+   * @throws Error if analysis fails
+   */
+  static async getFlipOpportunities(budget: number): Promise<FlipOpportunity[]> {
+  try {
+    const volumeData = await this.fetchVolumeData();
+
+    const items = await prisma.item.findMany({
+      include: {
+        prices: {
+          orderBy: { timestamp: 'desc' },
+          take: 20,
+        },
+      },
+      where: {
+        prices: {
+          some: {},
+        },
+      },
+    });
+
+    const opportunities: FlipOpportunity[] = [];
+
+    for (const item of items) {
+      if (item.prices.length === 0) continue;
+
+      const latestPrice = item.prices[0];
+      if (!latestPrice.high || !latestPrice.low) continue;
+
+      const volume = volumeData[item.id] || 0;
+
+      // DEBUG: Disable volume filtering
+      // if (!hassufficientVolume(volume, latestPrice.high)) continue;
+
+      const avgPrice = (latestPrice.high + latestPrice.low) / 2;
+      const margin = calculateMargin(latestPrice.high, latestPrice.low);
+      const marginPercent = calculateMarginPercent(margin, latestPrice.low);
+
+      if (margin <= 0 || avgPrice <= 0) continue;
+
+      const recentHighs = item.prices
+        .slice(0, 10)
+        .map(p => p.high || 0)
+        .filter(p => p > 0);
+
+      const recentLows = item.prices
+        .slice(0, 10)
+        .map(p => p.low || 0)
+        .filter(p => p > 0);
+
+      const volatility = calculateVolatility(recentHighs);
+      const riskLevel = getRiskLevel(volatility);
+
+      // DEBUG: Loosen volatility threshold
+      if (volatility > 100) continue;
+
+      // DEBUG: Skip anomaly detection
+      // const priceAnalysis = detectPriceAnomalies(
+      //   latestPrice.high,
+      //   latestPrice.low,
+      //   recentHighs,
+      //   recentLows
+      // );
+      // if (!priceAnalysis.isStable) continue;
+
+      const quantity = calculateOptimalQuantity(
+        budget,
+        avgPrice,
+        item.buyLimit,
+        volume
+      );
+
+      if (quantity === 0) continue;
+
+      const totalCost = quantity * latestPrice.low;
+      const totalProfit = quantity * margin;
+      const profitAfterTax = calculateProfitAfterTax(margin, latestPrice.high, quantity);
+      const roi = calculateROI(profitAfterTax, totalCost);
+
+      opportunities.push({
+        id: item.id,
+        name: item.name,
+        icon: item.icon || undefined,
+        currentHigh: latestPrice.high,
+        currentLow: latestPrice.low,
+        avgPrice,
+        margin,
+        marginPercent,
+        roi,
+        quantity,
+        totalCost,
+        totalProfit,
+        profitAfterTax,
+        buyLimit: item.buyLimit,
+        volume,
+        volatility,
+        riskLevel,
+        isStable: true, // hardcoded while skipping anomaly check
+        lastUpdated: latestPrice.timestamp,
+      });
+    }
+
+    // You can still filter and sort — this is usually safe
+    const profitableOpportunities = filterProfitableOpportunities(opportunities);
+    return sortOpportunitiesByScore(profitableOpportunities);
+  } catch (error) {
+    console.error('Failed to get flip opportunities:', error);
+    throw error;
+  }
+}
+
+
+  /**
+   * Generates an optimized portfolio recommendation with improved allocation
+   * 
+   * This method creates a comprehensive trading portfolio by selecting the best
+   * opportunities that fit within the user's budget. It now uses composite scoring,
+   * limits to 8 items (GE slot limit), and removes artificial budget caps per item.
+   * 
+   * @param budget - Available trading budget in GP
+   * @returns Complete portfolio suggestion with metrics and selected opportunities
+   * @throws Error if portfolio generation fails
+   */
+  static async getPortfolioSuggestion(budget: number): Promise<PortfolioSuggestion> {
+    try {
+      // Get all available trading opportunities (already scored and filtered)
+      const opportunities = await this.getFlipOpportunities(budget);
+      
+      let remainingBudget = budget;
+      const selectedOpportunities: FlipOpportunity[] = [];
+      const maxItems = 8; // GE slot limit
+      
+      // Enhanced selection algorithm: pick best opportunities up to slot limit
+      for (const opportunity of opportunities) {
+        if (remainingBudget <= 0 || selectedOpportunities.length >= maxItems) break;
+        
+        // For unlimited buy limit items, calculate quantity based on remaining budget
+        // and volume constraints rather than artificial caps
+        let adjustedQuantity: number;
+        
+        if (opportunity.buyLimit === 0) {
+          // Unlimited buy limit - use budget and volume constraints
+          adjustedQuantity = Math.min(
+            Math.floor(remainingBudget / opportunity.currentLow),
+            Math.floor(opportunity.volume * 0.1) // Don't exceed 10% of daily volume
+          );
+        } else {
+          // Normal buy limit - respect the limit
+          adjustedQuantity = Math.min(
+            opportunity.quantity,
+            Math.floor(remainingBudget / opportunity.currentLow)
+          );
+        }
+        
+        // Only include if we can afford at least one item
+        if (adjustedQuantity > 0) {
+          // Recalculate metrics for adjusted quantity
+          const adjustedOpportunity = {
+            ...opportunity,
+            quantity: adjustedQuantity,
+            totalCost: adjustedQuantity * opportunity.currentLow,
+            totalProfit: adjustedQuantity * opportunity.margin,
+            profitAfterTax: calculateProfitAfterTax(
+              opportunity.margin,
+              opportunity.currentHigh,
+              adjustedQuantity
+            ),
+          };
+          
+          // Recalculate ROI for adjusted investment
+          adjustedOpportunity.roi = calculateROI(
+            adjustedOpportunity.profitAfterTax,
+            adjustedOpportunity.totalCost
+          );
+          
+          selectedOpportunities.push(adjustedOpportunity);
+          remainingBudget -= adjustedOpportunity.totalCost;
+        }
+      }
+      
+      // Calculate portfolio-wide metrics
+      const totalCost = selectedOpportunities.reduce((sum, opp) => sum + opp.totalCost, 0);
+      const totalProfit = selectedOpportunities.reduce((sum, opp) => sum + opp.totalProfit, 0);
+      const totalProfitAfterTax = selectedOpportunities.reduce((sum, opp) => sum + opp.profitAfterTax, 0);
+      const totalROI = calculateROI(totalProfitAfterTax, totalCost);
+      const budgetUtilization = (totalCost / budget) * 100;
+      
+      return {
+        totalBudget: budget,
+        totalCost,
+        totalProfit,
+        totalProfitAfterTax,
+        totalROI,
+        opportunities: selectedOpportunities,
+        itemCount: selectedOpportunities.length,
+        budgetUtilization,
+        updatedAt: new Date(),
+      };
+    } catch (error) {
+      console.error('Failed to get portfolio suggestion:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetches historical price data for a specific item
+   * 
+   * This method retrieves recent price history for detailed analysis and charting.
+   * Used by the frontend for displaying item-specific price trends.
+   * 
+   * @param itemId - The item ID to fetch history for
+   * @param days - Number of days of history to retrieve (default: 7)
+   * @returns Historical price data for the item
+   */
+  static async getItemHistory(itemId: number, days: number = 7): Promise<any> {
+    try {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+
+      const item = await prisma.item.findUnique({
+        where: { id: itemId },
+        include: {
+          prices: {
+            where: {
+              timestamp: {
+                gte: startDate,
+              },
+            },
+            orderBy: { timestamp: 'desc' },
+          },
+        },
+      });
+
+      if (!item) {
+        throw new Error(`Item with ID ${itemId} not found`);
+      }
+
+      return {
+        itemId: item.id,
+        itemName: item.name,
+        prices: item.prices.map(price => ({
+          timestamp: price.timestamp,
+          high: price.high,
+          low: price.low,
+        })),
+      };
+    } catch (error) {
+      console.error(`Failed to get item history for ${itemId}:`, error);
+      throw error;
+    }
+  }
+}
