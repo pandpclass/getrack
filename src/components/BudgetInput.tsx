@@ -66,7 +66,7 @@ export function BudgetInput({ budget, onBudgetChange, disabled }: BudgetInputPro
           <input
             type="range"
             min={100000}
-            max={1000000000}
+            max={2147483647}
             step={100000}
             value={budget}
             onChange={handleSliderChange}
