@@ -4,9 +4,9 @@ import { ApiResponse } from '../types/api';
 
 /**
  * Base URL for API requests
- * Points to the local development server
- */
-const API_BASE_URL = 'http://localhost:3001';
+ * Configurable via the VITE_API_BASE_URL environment variable
+*/
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 /**
  * Custom React Hook for API Data Fetching
