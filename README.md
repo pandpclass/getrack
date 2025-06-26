@@ -94,6 +94,9 @@ The OSRS Grand Exchange Tracker helps players make data-driven trading decisions
    cp .env.example .env
    # Edit .env with your configuration
    ```
+   The `VITE_API_BASE_URL` variable controls where the frontend sends API
+   requests. Set it to your backend URL (e.g. `http://localhost:3001`) or leave
+   it empty to use relative paths during local development.
 
 5. **Start the application**
    ```bash
