@@ -282,7 +282,8 @@ export function filterProfitableOpportunities(
   opportunities: FlipOpportunity[],
   minProfit: number = 1000,
   minROI: number = 5,
-  minVolume: number = MIN_VOLUME_THRESHOLDS.DAILY
+  minVolume: number = 0,
+  maxVolatility: number = VOLATILITY_THRESHOLDS.EXTREME
 ): FlipOpportunity[] {
   return opportunities.filter(opp => {
     // Basic profitability filters
@@ -290,13 +291,18 @@ export function filterProfitableOpportunities(
       return false;
     }
 
-    // Volume/liquidity filter
-    if (opp.volume < minVolume) {
+    // Price-adjusted liquidity filter
+    if (!hassufficientVolume(opp.volume, opp.currentHigh)) {
       return false;
     }
 
-    // Extreme volatility filter
-    if (opp.volatility > VOLATILITY_THRESHOLDS.EXTREME) {
+    // Additional user-specified volume filter
+    if (minVolume > 0 && opp.volume < minVolume) {
+      return false;
+    }
+
+    // Volatility filter
+    if (opp.volatility > maxVolatility) {
       return false;
     }
 
