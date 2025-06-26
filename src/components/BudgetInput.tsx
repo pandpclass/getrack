@@ -1,13 +1,13 @@
 import React from 'react';
-import { Calculator, DollarSign } from 'lucide-react';
+import { Calculator } from 'lucide-react';
 
 /**
  * Props interface for the BudgetInput component
  */
 interface BudgetInputProps {
-  budget: number;                    // Current budget value in GP
-  onBudgetChange: (budget: number) => void;  // Callback when budget changes
-  disabled?: boolean;                // Whether input should be disabled
+  budget: number; // Current budget value in GP
+  onBudgetChange: (budget: number) => void; // Callback when budget changes
+  disabled?: boolean; // Whether input should be disabled
 }
 
 /**
@@ -15,9 +15,8 @@ interface BudgetInputProps {
  * 
  * Provides an intuitive interface for users to input their trading budget.
  * Features include:
- * - Formatted number input with thousands separators
+ * - Slider input with formatted budget display
  * - Preset budget buttons for common amounts
- * - Input validation and sanitization
  * - Responsive design for all screen sizes
  * 
  * The component handles number formatting to make large GP amounts readable
@@ -37,16 +36,8 @@ export function BudgetInput({ budget, onBudgetChange, disabled }: BudgetInputPro
    * Removes all non-numeric characters and converts to integer
    * Example: "1,000,000" -> 1000000
    */
-  const parseNumber = (str: string): number => {
-    return parseInt(str.replace(/[^0-9]/g, '')) || 0;
-  };
-
-  /**
-   * Handles input field changes with validation
-   * Ensures the value doesn't exceed the maximum 32-bit integer
-   */
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseNumber(e.target.value);
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value);
     onBudgetChange(Math.min(value, 2147483647)); // Max int32 limit
   };
 
@@ -70,25 +61,22 @@ export function BudgetInput({ budget, onBudgetChange, disabled }: BudgetInputPro
       </div>
       
       <div className="space-y-4">
-        {/* Main Budget Input Field */}
-        <div className="relative">
-          {/* Currency Icon */}
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <DollarSign className="h-5 w-5 text-gray-400" />
-          </div>
-          
-          {/* Input Field */}
+        {/* Slider Input */}
+        <div>
           <input
-            type="text"
-            value={formatNumber(budget)}
-            onChange={handleInputChange}
+            type="range"
+            min={100000}
+            max={1000000000}
+            step={100000}
+            value={budget}
+            onChange={handleSliderChange}
             disabled={disabled}
-            placeholder="Enter your budget in GP"
-            className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg 
-                     focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
-                     disabled:bg-gray-100 disabled:cursor-not-allowed
-                     text-lg font-medium"
+            className="w-full h-2 bg-gray-200 rounded-lg cursor-pointer accent-blue-500"
           />
+        </div>
+
+        <div className="text-center text-lg font-medium text-gray-800">
+          {formatNumber(budget)} GP
         </div>
         
         {/* Preset Budget Buttons */}
