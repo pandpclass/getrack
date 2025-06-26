@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TrendingUp, TrendingDown, AlertTriangle, ExternalLink, Info, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Info, BarChart3 } from 'lucide-react';
 import { FlipOpportunity } from '../types/api';
 import { ItemDetailModal } from './ItemDetailModal';
 

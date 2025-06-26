@@ -60,7 +60,7 @@ await fastify.register(apiRoutes);
  * Provides a simple health check at the root URL for monitoring
  * and confirming the server is running properly.
  */
-fastify.get('/', async (request, reply) => {
+fastify.get('/', async () => {
   return { 
     message: 'OSRS Grand Exchange Tracker API',
     version: '1.0.0',

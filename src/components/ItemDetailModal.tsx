@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, TrendingUp, TrendingDown, Clock, BarChart3, AlertCircle } from 'lucide-react';
+import { X, Clock, BarChart3, AlertCircle } from 'lucide-react';
 import { useApi } from '../hooks/useApi';
 import { ItemHistory } from '../types/api';
 import { LoadingSpinner } from './LoadingSpinner';
@@ -95,7 +95,9 @@ export function ItemDetailModal({ itemId, onClose }: ItemDetailModalProps) {
   /**
    * Creates a simple SVG line chart from price data
    */
-  const createPriceChart = (prices: any[]) => {
+  const createPriceChart = (
+    prices: Array<{ high?: number | null; low?: number | null }>
+  ) => {
     if (prices.length < 2) return null;
 
     const width = 400;
@@ -171,7 +173,9 @@ export function ItemDetailModal({ itemId, onClose }: ItemDetailModalProps) {
   /**
    * Calculates basic statistics from price data
    */
-  const calculateStats = (prices: any[]) => {
+  const calculateStats = (
+    prices: Array<{ high?: number | null; low?: number | null }>
+  ) => {
     if (prices.length === 0) return null;
 
     const validHighs = prices.filter(p => p.high).map(p => p.high);
