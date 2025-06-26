@@ -58,8 +58,8 @@ export interface OSRSLatestPrices {
  */
 export interface OSRSVolumeData {
   [itemId: string]: {
-    high?: number;     // Volume of high price trades
-    low?: number;      // Volume of low price trades
+    highPriceVolume?: number; // Volume of high price trades
+    lowPriceVolume?: number;  // Volume of low price trades
   };
 }
 
