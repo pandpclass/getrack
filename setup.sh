@@ -12,6 +12,8 @@ fi
 if command -v npx >/dev/null 2>&1; then
   echo "Generating Prisma client..."
   npx prisma generate
+  echo "Applying database schema..."
+  npx prisma db push
 fi
 
 echo "Setup complete."

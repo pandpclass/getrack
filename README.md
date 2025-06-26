@@ -90,9 +90,12 @@ The OSRS Grand Exchange Tracker helps players make data-driven trading decisions
    ```
 
 4. **Configure environment variables**
+   Create a `.env` file and set any custom settings.
+   The frontend reads `VITE_API_BASE_URL` for the API URL and defaults
+   to `http://localhost:3001` when not provided.
    ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
+   echo "VITE_API_BASE_URL=http://localhost:3001" > .env
+   # Edit .env if your API runs on a different host
    ```
 
 5. **Start the application**
@@ -107,7 +110,7 @@ The OSRS Grand Exchange Tracker helps players make data-driven trading decisions
 
 6. **Access the application**
    - Frontend: http://localhost:5173
-   - Backend API: http://localhost:3001
+   - Backend API: `VITE_API_BASE_URL` (default http://localhost:3001)
    - Database Studio: `npm run db:studio`
 
 ## 📖 How to Use
@@ -327,6 +330,7 @@ prisma/
 - **Volatility Filter**: Excludes items with >30% price volatility
 - **Stability Filter**: Removes items with detected price spikes/crashes
 - **Buy Limit Handling**: Treats 0 as unlimited (∞)
+- **Margin Filter**: Ignores items with margins above 1000% to avoid unrealistic ROI
 
 ### Portfolio Optimization
 - Maximum 8 items (Grand Exchange slot limit)
@@ -351,6 +355,7 @@ prisma/
 6. **GE Tax Cap**: 5M GP maximum tax per transaction
 7. **Item Detail Modals**: Interactive price history and analysis
 8. **Enhanced UI**: Better risk indicators, tooltips, and mobile responsiveness
+9. **Unrealistic Margin Filter**: Skips items with extreme price gaps
 
 ### Technical Improvements
 - Enhanced calculation algorithms with multiple filtering layers
@@ -358,6 +363,7 @@ prisma/
 - Better error handling and graceful degradation
 - Optimized database queries and caching strategies
 - Comprehensive TypeScript type definitions
+- Frontend API URL configured via `VITE_API_BASE_URL`
 
 ## 💡 Next Steps
 
