@@ -3,6 +3,7 @@ import { X, Clock, BarChart3, AlertCircle } from 'lucide-react';
 import { useApi } from '../hooks/useApi';
 import { ItemHistory } from '../types/api';
 import { LoadingSpinner } from './LoadingSpinner';
+import { PriceHistoryChart } from './PriceHistoryChart';
 
 /**
  * Props interface for the ItemDetailModal component
@@ -92,83 +93,6 @@ export function ItemDetailModal({ itemId, onClose }: ItemDetailModalProps) {
     return `${formatNumber(num)} GP`;
   };
 
-  /**
-   * Creates a simple SVG line chart from price data
-   */
-  const createPriceChart = (
-    prices: Array<{ high?: number | null; low?: number | null }>
-  ) => {
-    if (prices.length < 2) return null;
-
-    const width = 400;
-    const height = 200;
-    const padding = 20;
-
-    // Get price ranges
-    const allPrices = prices.flatMap(p => [p.high, p.low].filter(Boolean));
-    const minPrice = Math.min(...allPrices);
-    const maxPrice = Math.max(...allPrices);
-    const priceRange = maxPrice - minPrice || 1;
-
-    // Create points for high and low price lines
-    const highPoints = prices
-      .filter(p => p.high)
-      .map((p, i) => {
-        const x = padding + (i / (prices.length - 1)) * (width - 2 * padding);
-        const y = padding + ((maxPrice - p.high) / priceRange) * (height - 2 * padding);
-        return `${x},${y}`;
-      })
-      .join(' ');
-
-    const lowPoints = prices
-      .filter(p => p.low)
-      .map((p, i) => {
-        const x = padding + (i / (prices.length - 1)) * (width - 2 * padding);
-        const y = padding + ((maxPrice - p.low) / priceRange) * (height - 2 * padding);
-        return `${x},${y}`;
-      })
-      .join(' ');
-
-    return (
-      <svg width={width} height={height} className="border rounded">
-        {/* Grid lines */}
-        <defs>
-          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#f3f4f6" strokeWidth="1"/>
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" />
-        
-        {/* Price lines */}
-        {highPoints && (
-          <polyline
-            points={highPoints}
-            fill="none"
-            stroke="#ef4444"
-            strokeWidth="2"
-            className="drop-shadow-sm"
-          />
-        )}
-        {lowPoints && (
-          <polyline
-            points={lowPoints}
-            fill="none"
-            stroke="#22c55e"
-            strokeWidth="2"
-            className="drop-shadow-sm"
-          />
-        )}
-        
-        {/* Labels */}
-        <text x={padding} y={15} className="text-xs fill-gray-600">
-          {formatCurrency(maxPrice)}
-        </text>
-        <text x={padding} y={height - 5} className="text-xs fill-gray-600">
-          {formatCurrency(minPrice)}
-        </text>
-      </svg>
-    );
-  };
 
   /**
    * Calculates basic statistics from price data
@@ -280,7 +204,7 @@ export function ItemDetailModal({ itemId, onClose }: ItemDetailModalProps) {
                 
                 <div className="flex justify-center">
                   {filteredPrices.length > 1 ? (
-                    createPriceChart(filteredPrices)
+                    <PriceHistoryChart data={filteredPrices} />
                   ) : (
                     <div className="text-gray-500 py-8">
                       Insufficient data for chart (need at least 2 data points)
