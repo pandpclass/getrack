@@ -7,7 +7,7 @@ import { OpportunityTable } from './components/OpportunityTable';
 import { LoadingCard } from './components/LoadingSpinner';
 import { ErrorMessage } from './components/ErrorMessage';
 import { useApi, apiRequest } from './hooks/useApi';
-import { PortfolioSuggestion } from './types/api';
+import { PortfolioSuggestion, FlipOpportunity } from './types/api';
 
 /**
  * Main Application Component
@@ -26,22 +26,32 @@ import { PortfolioSuggestion } from './types/api';
 function App() {
   // State for user's trading budget (default: 10M GP)
   const [budget, setBudget] = useState<number>(10000000);
-  const [minVolume, setMinVolume] = useState<number>(0);
-  const [maxVolatility, setMaxVolatility] = useState<number>(50);
+  const [minVolume, setMinVolume] = useState<number>(1200);
+  const [maxVolatility, setMaxVolatility] = useState<number>(30);
+  const [showSpikes, setShowSpikes] = useState<boolean>(false);
+  const [showHighRisk, setShowHighRisk] = useState<boolean>(false);
+
+  const [viewMode, setViewMode] = useState<'portfolio' | 'opportunities'>('portfolio');
+  const [resultLimit, setResultLimit] = useState<number>(50);
   
   // State for manual refresh loading indicator
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Custom hook for fetching portfolio data based on budget
   // Automatically refetches when budget changes
-  const { 
-    data: portfolio, 
-    loading, 
-    error 
-  } = useApi<PortfolioSuggestion>(
-    `/api/portfolio?budget=${budget}&minVolume=${minVolume}&maxVolatility=${maxVolatility}`,
-    [budget, minVolume, maxVolatility]
-  );
+  const portfolioUrl = `/api/portfolio?budget=${budget}&minVolume=${minVolume}&maxVolatility=${maxVolatility}&includeSpikes=${showSpikes}&includeHighRisk=${showHighRisk}`;
+  const {
+    data: portfolio,
+    loading,
+    error
+  } = useApi<PortfolioSuggestion>(portfolioUrl, [budget, minVolume, maxVolatility, showSpikes, showHighRisk]);
+
+  const opportunitiesUrl = `/api/opportunities?budget=${budget}&limit=${resultLimit}&minVolume=${minVolume}&maxVolatility=${maxVolatility}&includeSpikes=${showSpikes}&includeHighRisk=${showHighRisk}`;
+  const {
+    data: opportunities,
+    loading: oppLoading,
+    error: oppError
+  } = useApi<FlipOpportunity[]>(opportunitiesUrl, [budget, minVolume, maxVolatility, resultLimit, showSpikes, showHighRisk]);
 
   /**
    * Handles manual data refresh by triggering API sync
@@ -68,10 +78,24 @@ function App() {
     ? {
         ...portfolio,
         opportunities: portfolio.opportunities.filter(
-          (opp) => opp.volume >= minVolume && opp.volatility <= maxVolatility
+          (opp) =>
+            opp.volume >= minVolume &&
+            opp.volatility <= maxVolatility &&
+            (showHighRisk || opp.volatility <= 25) &&
+            (showSpikes || opp.isStable)
         ),
       }
     : null;
+
+  const filteredOpportunities = opportunities
+    ? opportunities.filter(
+        (opp) =>
+          opp.volume >= minVolume &&
+          opp.volatility <= maxVolatility &&
+          (showHighRisk || opp.volatility <= 25) &&
+          (showSpikes || opp.isStable)
+      )
+    : [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -125,8 +149,54 @@ function App() {
             onMinVolumeChange={setMinVolume}
             maxVolatility={maxVolatility}
             onMaxVolatilityChange={setMaxVolatility}
+            showSpikes={showSpikes}
+            onShowSpikesChange={setShowSpikes}
+            showHighRisk={showHighRisk}
+            onShowHighRiskChange={setShowHighRisk}
             disabled={loading}
           />
+
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <input
+                type="radio"
+                id="viewPortfolio"
+                checked={viewMode === 'portfolio'}
+                onChange={() => setViewMode('portfolio')}
+              />
+              <label htmlFor="viewPortfolio" className="text-sm text-gray-700">
+                Optimized Portfolio
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="radio"
+                id="viewOpps"
+                checked={viewMode === 'opportunities'}
+                onChange={() => setViewMode('opportunities')}
+              />
+              <label htmlFor="viewOpps" className="text-sm text-gray-700">
+                All Opportunities
+              </label>
+          </div>
+          {viewMode === 'opportunities' && (
+            <select
+              value={resultLimit}
+              onChange={(e) => setResultLimit(parseInt(e.target.value))}
+              className="ml-4 border-gray-300 rounded-md text-sm"
+            >
+              {[25,50,100].map(l => (
+                <option key={l} value={l}>{l} results</option>
+              ))}
+            </select>
+          )}
+          {import.meta.env.DEV && (
+            <pre className="ml-4 text-xs text-gray-500 break-all">
+              {viewMode === 'portfolio' ? portfolioUrl : opportunitiesUrl}
+            </pre>
+          )}
+          </div>
 
           {/* Loading State Display */}
           {loading && (
@@ -145,16 +215,11 @@ function App() {
             />
           )}
 
-          {/* Portfolio Data Display */}
-          {filteredPortfolio && !loading && !error && (
+          {/* Data Display */}
+          {viewMode === 'portfolio' && filteredPortfolio && !loading && !error && (
             <>
-              {/* Portfolio Summary Cards */}
               <PortfolioSummary portfolio={filteredPortfolio} />
-              
-              {/* Detailed Opportunities Table */}
               <OpportunityTable opportunities={filteredPortfolio.opportunities} />
-              
-              {/* Informational Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
                 {/* Real-time Data Info */}
                 <div className="bg-blue-50 rounded-lg p-6">
@@ -190,6 +255,15 @@ function App() {
                 </div>
               </div>
             </>
+          )}
+          {viewMode === 'opportunities' && !oppLoading && !oppError && (
+            <OpportunityTable opportunities={filteredOpportunities} />
+          )}
+          {viewMode === 'opportunities' && oppLoading && (
+            <LoadingCard title="Loading Opportunities" description="Fetching data..." />
+          )}
+          {viewMode === 'opportunities' && oppError && (
+            <ErrorMessage title="Failed to Load Data" message={oppError} onRetry={() => setBudget(prev => prev)} />
           )}
         </div>
       </main>

@@ -29,13 +29,15 @@ export async function apiRoutes(fastify: FastifyInstance) {
    * Returns: PortfolioSuggestion object with selected opportunities and metrics
    */
   fastify.get<{
-    Querystring: { budget: string; minVolume?: string; maxVolatility?: string };
+    Querystring: { budget: string; minVolume?: string; maxVolatility?: string; includeSpikes?: string; includeHighRisk?: string };
   }>('/api/portfolio', async (request, reply) => {
     try {
       // Parse and validate budget parameter
       const budget = parseFloat(request.query.budget) || 10000000;
       const minVolume = request.query.minVolume ? parseInt(request.query.minVolume) : 0;
       const maxVolatility = request.query.maxVolatility ? parseFloat(request.query.maxVolatility) : VOLATILITY_THRESHOLDS.EXTREME;
+      const includeSpikes = request.query.includeSpikes === 'true';
+      const includeHighRisk = request.query.includeHighRisk === 'true';
       
       // Validate budget range (must be positive and within int32 limits)
       if (budget <= 0 || budget > 2147483647) {
@@ -50,6 +52,8 @@ export async function apiRoutes(fastify: FastifyInstance) {
       const portfolio = await PriceService.getPortfolioSuggestion(budget, {
         minVolume,
         maxVolatility,
+        includeSpikes,
+        includeHighRisk,
       });
       
       return reply.send({
@@ -85,6 +89,8 @@ export async function apiRoutes(fastify: FastifyInstance) {
       limit?: string;
       minVolume?: string;
       maxVolatility?: string;
+      includeSpikes?: string;
+      includeHighRisk?: string;
     };
   }>('/api/opportunities', async (request, reply) => {
     try {
@@ -93,11 +99,15 @@ export async function apiRoutes(fastify: FastifyInstance) {
       const limit = parseInt(request.query.limit || '50');
       const minVolume = request.query.minVolume ? parseInt(request.query.minVolume) : 0;
       const maxVolatility = request.query.maxVolatility ? parseFloat(request.query.maxVolatility) : VOLATILITY_THRESHOLDS.EXTREME;
+      const includeSpikes = request.query.includeSpikes === 'true';
+      const includeHighRisk = request.query.includeHighRisk === 'true';
       
       // Get all opportunities with enhanced filtering and scoring
       const opportunities = await PriceService.getFlipOpportunities(budget, {
         minVolume,
         maxVolatility,
+        includeSpikes,
+        includeHighRisk,
       });
       const limitedOpportunities = opportunities.slice(0, limit);
       

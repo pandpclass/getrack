@@ -6,6 +6,10 @@ interface AdvancedFiltersProps {
   onMinVolumeChange: (v: number) => void;
   maxVolatility: number;
   onMaxVolatilityChange: (v: number) => void;
+  showSpikes: boolean;
+  onShowSpikesChange: (v: boolean) => void;
+  showHighRisk: boolean;
+  onShowHighRiskChange: (v: boolean) => void;
   disabled?: boolean;
 }
 
@@ -14,6 +18,10 @@ export function AdvancedFilters({
   onMinVolumeChange,
   maxVolatility,
   onMaxVolatilityChange,
+  showSpikes,
+  onShowSpikesChange,
+  showHighRisk,
+  onShowHighRiskChange,
   disabled,
 }: AdvancedFiltersProps) {
   return (
@@ -48,7 +56,7 @@ export function AdvancedFilters({
           <input
             type="range"
             min={0}
-            max={50}
+            max={500}
             step={1}
             value={maxVolatility}
             onChange={(e) => onMaxVolatilityChange(parseInt(e.target.value))}
@@ -56,6 +64,30 @@ export function AdvancedFilters({
             className="w-full h-2 bg-gray-200 rounded-lg cursor-pointer accent-blue-500"
           />
           <div className="text-sm text-gray-600 mt-1">{maxVolatility}%</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="showSpikes"
+            checked={showSpikes}
+            onChange={(e) => onShowSpikesChange(e.target.checked)}
+            disabled={disabled}
+          />
+          <label htmlFor="showSpikes" className="text-sm text-gray-700">
+            Show items with detected price spikes
+          </label>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="showHighRisk"
+            checked={showHighRisk}
+            onChange={(e) => onShowHighRiskChange(e.target.checked)}
+            disabled={disabled}
+          />
+          <label htmlFor="showHighRisk" className="text-sm text-gray-700">
+            Show high-risk items (&gt;25% volatility)
+          </label>
         </div>
       </div>
     </div>
