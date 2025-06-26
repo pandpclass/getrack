@@ -219,7 +219,9 @@ export class PriceService {
     {
       minVolume = 0,
       maxVolatility = VOLATILITY_THRESHOLDS.EXTREME,
-    }: { minVolume?: number; maxVolatility?: number } = {}
+      includeSpikes = false,
+      includeHighRisk = false,
+    }: { minVolume?: number; maxVolatility?: number; includeSpikes?: boolean; includeHighRisk?: boolean } = {}
   ): Promise<FlipOpportunity[]> {
   try {
     const volumeData = await this.fetchVolumeData();
@@ -269,6 +271,7 @@ export class PriceService {
       const volatility = calculateVolatility(recentHighs);
       const riskLevel = getRiskLevel(volatility);
 
+      if (!includeHighRisk && volatility > 25) continue;
       if (volatility > VOLATILITY_THRESHOLDS.EXTREME) continue;
 
       const priceAnalysis = detectPriceAnomalies(
@@ -277,7 +280,7 @@ export class PriceService {
         recentHighs,
         recentLows
       );
-      if (!priceAnalysis.isStable) continue;
+      if (!includeSpikes && !priceAnalysis.isStable) continue;
 
       const quantity = calculateOptimalQuantity(
         budget,
@@ -351,7 +354,7 @@ export class PriceService {
    */
   static async getPortfolioSuggestion(
     budget: number,
-    filters: { minVolume?: number; maxVolatility?: number } = {}
+    filters: { minVolume?: number; maxVolatility?: number; includeSpikes?: boolean; includeHighRisk?: boolean } = {}
   ): Promise<PortfolioSuggestion> {
     try {
       // Get all available trading opportunities (already scored and filtered)
