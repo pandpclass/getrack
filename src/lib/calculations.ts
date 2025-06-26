@@ -292,7 +292,7 @@ export function filterProfitableOpportunities(
     }
 
     // Price-adjusted liquidity filter
-    if (!hassufficientVolume(opp.volume, opp.currentHigh)) {
+    if (!hasSufficientVolume(opp.volume, opp.currentHigh)) {
       return false;
     }
 
@@ -318,7 +318,7 @@ export function filterProfitableOpportunities(
  * @param itemPrice - Item price (for price-adjusted thresholds)
  * @returns Whether the item has sufficient liquidity
  */
-export function hassufficientVolume(volume: number, itemPrice: number): boolean {
+export function hasSufficientVolume(volume: number, itemPrice: number): boolean {
   // Lower volume tolerance for expensive items
   const threshold = itemPrice > 1000000 ? MIN_VOLUME_THRESHOLDS.HOURLY : MIN_VOLUME_THRESHOLDS.DAILY;
   return volume >= threshold;
