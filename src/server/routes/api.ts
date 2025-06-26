@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PriceService } from '../services/price-service.js';
 import { ApiResponse, PortfolioSuggestion, FlipOpportunity, ItemHistory } from '../../types/api.js';
+import { VOLATILITY_THRESHOLDS } from '../../lib/calculations.js';
 
 /**
  * API Routes Module
@@ -28,11 +29,13 @@ export async function apiRoutes(fastify: FastifyInstance) {
    * Returns: PortfolioSuggestion object with selected opportunities and metrics
    */
   fastify.get<{
-    Querystring: { budget: string };
+    Querystring: { budget: string; minVolume?: string; maxVolatility?: string };
   }>('/api/portfolio', async (request, reply) => {
     try {
       // Parse and validate budget parameter
       const budget = parseFloat(request.query.budget) || 10000000;
+      const minVolume = request.query.minVolume ? parseInt(request.query.minVolume) : 0;
+      const maxVolatility = request.query.maxVolatility ? parseFloat(request.query.maxVolatility) : VOLATILITY_THRESHOLDS.EXTREME;
       
       // Validate budget range (must be positive and within int32 limits)
       if (budget <= 0 || budget > 2147483647) {
@@ -44,7 +47,10 @@ export async function apiRoutes(fastify: FastifyInstance) {
       }
 
       // Generate enhanced portfolio recommendation
-      const portfolio = await PriceService.getPortfolioSuggestion(budget);
+      const portfolio = await PriceService.getPortfolioSuggestion(budget, {
+        minVolume,
+        maxVolatility,
+      });
       
       return reply.send({
         success: true,
@@ -74,15 +80,25 @@ export async function apiRoutes(fastify: FastifyInstance) {
    * Returns: Array of FlipOpportunity objects
    */
   fastify.get<{
-    Querystring: { budget?: string; limit?: string };
+    Querystring: {
+      budget?: string;
+      limit?: string;
+      minVolume?: string;
+      maxVolatility?: string;
+    };
   }>('/api/opportunities', async (request, reply) => {
     try {
       // Parse query parameters with defaults
       const budget = parseFloat(request.query.budget || '100000000');
       const limit = parseInt(request.query.limit || '50');
+      const minVolume = request.query.minVolume ? parseInt(request.query.minVolume) : 0;
+      const maxVolatility = request.query.maxVolatility ? parseFloat(request.query.maxVolatility) : VOLATILITY_THRESHOLDS.EXTREME;
       
       // Get all opportunities with enhanced filtering and scoring
-      const opportunities = await PriceService.getFlipOpportunities(budget);
+      const opportunities = await PriceService.getFlipOpportunities(budget, {
+        minVolume,
+        maxVolatility,
+      });
       const limitedOpportunities = opportunities.slice(0, limit);
       
       return reply.send({

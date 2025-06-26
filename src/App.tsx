@@ -38,7 +38,10 @@ function App() {
     data: portfolio, 
     loading, 
     error 
-  } = useApi<PortfolioSuggestion>(`/api/portfolio?budget=${budget}`, [budget]);
+  } = useApi<PortfolioSuggestion>(
+    `/api/portfolio?budget=${budget}&minVolume=${minVolume}&maxVolatility=${maxVolatility}`,
+    [budget, minVolume, maxVolatility]
+  );
 
   /**
    * Handles manual data refresh by triggering API sync

@@ -1,6 +1,6 @@
 import prisma from '../../lib/database.js';
 import { OSRSApiService } from './osrs-api.js';
-import { FlipOpportunity, PortfolioSuggestion } from '../../types/api.js';
+import { FlipOpportunity, PortfolioSuggestion, OSRSItem } from '../../types/api.js';
 import {
   calculateMargin,
   calculateMarginPercent,
@@ -90,6 +90,12 @@ export class PriceService {
     try {
       console.log('Syncing prices from OSRS API...');
       const prices = await OSRSApiService.fetchLatestPrices();
+      // Load item mapping once to handle newly introduced items
+      const itemMapping = await OSRSApiService.fetchItemMapping();
+      const mappingById: Record<number, OSRSItem> = {};
+      for (const item of itemMapping) {
+        mappingById[item.id] = item;
+      }
       
       // Process each item's price data
       for (const [itemIdStr, priceData] of Object.entries(prices)) {
@@ -98,27 +104,43 @@ export class PriceService {
         // Skip items without valid price data
         if (!priceData.high && !priceData.low) continue;
         
+        // Ensure item exists before inserting price (avoid foreign key violation)
+        let existingItem = await prisma.item.findUnique({
+          where: { id: itemId },
+        });
+
+        // If item doesn't exist, attempt to create it from the mapping
+        if (!existingItem) {
+          const mapped = mappingById[itemId];
+          if (mapped) {
+            await prisma.item.create({
+              data: {
+                id: mapped.id,
+                name: mapped.name,
+                buyLimit: mapped.limit || 0,
+                icon: mapped.icon,
+                examine: mapped.examine,
+                members: mapped.members || false,
+                lowalch: mapped.lowalch,
+                highalch: mapped.highalch,
+              },
+            });
+          } else {
+            console.warn(`Skipping price insert: Item ID ${itemId} not found in mapping`);
+            continue;
+          }
+        }
+
         // Create new price record with timestamp
-       // Ensure item exists before inserting price (avoid foreign key violation)
-const existingItem = await prisma.item.findUnique({
-  where: { id: itemId },
-});
-
-if (!existingItem) {
-  console.warn(`Skipping price insert: Item ID ${itemId} not found`);
-  continue; // skip this record
-}
-
-// Create new price record with timestamp
-await prisma.price.create({
-  data: {
-    itemId,
-    high: priceData.high || null,
-    low: priceData.low || null,
-    highTime: priceData.highTime ? new Date(priceData.highTime * 1000) : null,
-    lowTime: priceData.lowTime ? new Date(priceData.lowTime * 1000) : null,
-  },
-});
+        await prisma.price.create({
+          data: {
+            itemId,
+            high: priceData.high || null,
+            low: priceData.low || null,
+            highTime: priceData.highTime ? new Date(priceData.highTime * 1000) : null,
+            lowTime: priceData.lowTime ? new Date(priceData.lowTime * 1000) : null,
+          },
+        });
 
       }
       
@@ -177,7 +199,13 @@ await prisma.price.create({
    * @returns Array of profitable trading opportunities, sorted by composite score
    * @throws Error if analysis fails
    */
-  static async getFlipOpportunities(budget: number): Promise<FlipOpportunity[]> {
+  static async getFlipOpportunities(
+    budget: number,
+    {
+      minVolume = 0,
+      maxVolatility = VOLATILITY_THRESHOLDS.EXTREME,
+    }: { minVolume?: number; maxVolatility?: number } = {}
+  ): Promise<FlipOpportunity[]> {
   try {
     const volumeData = await this.fetchVolumeData();
 
@@ -274,7 +302,13 @@ await prisma.price.create({
     }
 
     // You can still filter and sort — this is usually safe
-    const profitableOpportunities = filterProfitableOpportunities(opportunities);
+    const profitableOpportunities = filterProfitableOpportunities(
+      opportunities,
+      1000,
+      5,
+      minVolume,
+      maxVolatility
+    );
     return sortOpportunitiesByScore(profitableOpportunities);
   } catch (error) {
     console.error('Failed to get flip opportunities:', error);
@@ -294,10 +328,13 @@ await prisma.price.create({
    * @returns Complete portfolio suggestion with metrics and selected opportunities
    * @throws Error if portfolio generation fails
    */
-  static async getPortfolioSuggestion(budget: number): Promise<PortfolioSuggestion> {
+  static async getPortfolioSuggestion(
+    budget: number,
+    filters: { minVolume?: number; maxVolatility?: number } = {}
+  ): Promise<PortfolioSuggestion> {
     try {
       // Get all available trading opportunities (already scored and filtered)
-      const opportunities = await this.getFlipOpportunities(budget);
+      const opportunities = await this.getFlipOpportunities(budget, filters);
       
       let remainingBudget = budget;
       const selectedOpportunities: FlipOpportunity[] = [];
