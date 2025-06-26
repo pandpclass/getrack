@@ -71,6 +71,7 @@ export class PriceSyncJob {
       try {
         console.log('Starting scheduled item sync...');
         await PriceService.syncItems();
+        await PriceService.syncHistoricalPrices();
         console.log('Scheduled item sync completed successfully');
       } catch (error) {
         console.error('Scheduled item sync failed:', error);
@@ -97,6 +98,9 @@ export class PriceSyncJob {
       
       // Then sync current prices
       await PriceService.syncPrices();
+
+      // Populate historical data if needed
+      await PriceService.syncHistoricalPrices();
       
       console.log('Initial data sync completed successfully');
     } catch (error) {
