@@ -32,12 +32,12 @@ export function BudgetInput({ budget, onBudgetChange, disabled }: BudgetInputPro
   };
 
   /**
-   * Parses a formatted string back to a number
-   * Removes all non-numeric characters and converts to integer
-   * Example: "1,000,000" -> 1000000
+   * Handles slider changes and updates the budget
+   * valueAsNumber ensures the value is parsed correctly
    */
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value);
+    // valueAsNumber gives the numeric value directly from the range input
+    const value = e.target.valueAsNumber;
     onBudgetChange(Math.min(value, 2147483647)); // Max int32 limit
   };
 
