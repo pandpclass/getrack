@@ -365,7 +365,7 @@ prisma/
 - Historical data used for volatility and spike detection
 - No guarantee of actual in-game availability
 
-## 🆕 Latest Changes (v2.0)
+## 🆕 Latest Changes (v2.1)
 
 ### Major Enhancements
 1. **Volume Data Integration**: 24h trading volume filtering and display
@@ -377,6 +377,11 @@ prisma/
 7. **Item Detail Modals**: Interactive price history and analysis
 8. **Enhanced UI**: Better risk indicators, tooltips, and mobile responsiveness
 9. **Unrealistic Margin Filter**: Skips items with extreme price gaps
+
+### v2.1 Highlights
+1. **Beta Mode Toggle**: Quickly include high-risk, long-term investments
+2. **Historical Preload**: Startup routine fetches 24h of price history
+3. **Improved Volatility Analysis**: Uses preloaded data for stability checks
 
 ### Technical Improvements
 - Enhanced calculation algorithms with multiple filtering layers
