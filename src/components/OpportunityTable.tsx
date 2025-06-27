@@ -193,6 +193,7 @@ export function OpportunityTable({ opportunities, loading }: OpportunityTablePro
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('currentLow')}>
                   Prices {sortKey === 'currentLow' && (sortDirection === 'asc' ? '▲' : '▼')}
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('margin')}>Margin</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('quantity')}>
                   Quantity {sortKey === 'quantity' && (sortDirection === 'asc' ? '▲' : '▼')}
                 </th>
@@ -262,6 +263,11 @@ export function OpportunityTable({ opportunities, loading }: OpportunityTablePro
                     </div>
                   </td>
 
+                  {/* Margin per Item */}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900" title={`${opportunity.margin.toLocaleString()} GP`}>
+                    {formatCurrency(opportunity.margin)}
+                  </td>
+
                   {/* Recommended Quantity */}
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatNumber(opportunity.quantity)}
@@ -301,12 +307,15 @@ export function OpportunityTable({ opportunities, loading }: OpportunityTablePro
 
                   {/* Risk Assessment */}
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div 
+                    <div
                       className={`flex items-center text-sm ${getVolatilityColor(opportunity.volatility)}`}
                       title={getRiskTooltip(opportunity.volatility, opportunity.riskLevel)}
                     >
                       {getVolatilityIcon(opportunity.volatility)}
                       <span className="ml-1">{formatPercent(opportunity.volatility)}</span>
+                      {!opportunity.isStable && (
+                        <AlertTriangle className="w-3 h-3 text-red-500 ml-1" title="Recent price spike detected" />
+                      )}
                     </div>
                   </td>
 

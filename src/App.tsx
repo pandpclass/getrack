@@ -30,6 +30,18 @@ function App() {
   const [maxVolatility, setMaxVolatility] = useState<number>(30);
   const [showSpikes, setShowSpikes] = useState<boolean>(false);
   const [showHighRisk, setShowHighRisk] = useState<boolean>(false);
+  const [betaMode, setBetaMode] = useState<boolean>(false);
+
+  // When beta mode is toggled, enable or disable high-risk and spike filters
+  React.useEffect(() => {
+    if (betaMode) {
+      setShowHighRisk(true);
+      setShowSpikes(true);
+    } else {
+      setShowHighRisk(false);
+      setShowSpikes(false);
+    }
+  }, [betaMode]);
 
   const [viewMode, setViewMode] = useState<'portfolio' | 'opportunities'>('portfolio');
   const [resultLimit, setResultLimit] = useState<number>(50);
@@ -120,15 +132,26 @@ function App() {
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 
-                       rounded-md shadow-sm text-sm font-medium text-gray-700 
-                       bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 
-                       focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 
+              className="inline-flex items-center px-4 py-2 border border-gray-300
+                       rounded-md shadow-sm text-sm font-medium text-gray-700
+                       bg-white hover:bg-gray-50 focus:outline-none focus:ring-2
+                       focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50
                        disabled:cursor-not-allowed transition-colors"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
               {isRefreshing ? 'Refreshing...' : 'Refresh Data'}
             </button>
+
+            {/* Beta Mode Toggle */}
+            <label className="flex items-center ml-4 text-sm text-gray-700" title="Show high-risk/long-term flips">
+              <input
+                type="checkbox"
+                className="mr-2"
+                checked={betaMode}
+                onChange={(e) => setBetaMode(e.target.checked)}
+              />
+              Include High-Risk/Long-Term (Beta)
+            </label>
           </div>
         </div>
       </header>
@@ -142,6 +165,12 @@ function App() {
             onBudgetChange={setBudget}
             disabled={loading}
           />
+
+          {betaMode && (
+            <div className="bg-yellow-50 border border-yellow-300 text-yellow-800 text-sm rounded-md p-3">
+              Beta mode: showing high-risk items. Results may be volatile.
+            </div>
+          )}
 
           {/* Advanced Filters */}
           <AdvancedFilters

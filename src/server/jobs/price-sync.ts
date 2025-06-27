@@ -101,7 +101,10 @@ export class PriceSyncJob {
 
       // Populate historical data if needed
       await PriceService.syncHistoricalPrices();
-      
+
+      // Preload recent price history into the Price table
+      await PriceService.preloadRecentPrices();
+
       console.log('Initial data sync completed successfully');
     } catch (error) {
       console.error('Initial data sync failed:', error);

@@ -275,6 +275,53 @@ export class PriceService {
     }
   }
 
+  /**
+   * Preloads recent price history for popular items into the Price table
+   *
+   * Fetches the last 24 hours of hourly data for the top traded items
+   * using the /timeseries endpoint. This provides enough historical data
+   * for volatility calculations immediately after startup.
+   */
+  static async preloadRecentPrices(): Promise<void> {
+    try {
+      if (process.env.PRICE_PRELOAD_DONE === 'true') {
+        console.log('Recent price preload already performed, skipping');
+        return;
+      }
+
+      console.log('Preloading recent price history...');
+      const volumeData = await this.fetchVolumeData();
+      const topIds = Object.entries(volumeData)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20)
+        .map(([id]) => parseInt(id));
+
+      for (const itemId of topIds) {
+        const records = (await OSRSApiService.fetchTimeseries(
+          itemId,
+          '1h'
+        )) as any[];
+        for (const r of records) {
+          await prisma.price.create({
+            data: {
+              itemId,
+              high: r.avgHighPrice ?? null,
+              low: r.avgLowPrice ?? null,
+              timestamp: new Date(r.timestamp * 1000),
+            },
+          });
+        }
+        // small delay to respect API rate limits
+        await new Promise(res => setTimeout(res, 200));
+      }
+
+      process.env.PRICE_PRELOAD_DONE = 'true';
+      console.log('Recent price history preload complete');
+    } catch (error) {
+      console.error('Failed to preload recent prices:', error);
+    }
+  }
+
 
   /**
    * Generates trading opportunities with enhanced filtering and scoring
@@ -318,7 +365,20 @@ export class PriceService {
     for (const item of items) {
       if (item.prices.length === 0) continue;
 
-      const latestPrice = item.prices[0];
+      let priceRecords = [...item.prices];
+      if (priceRecords.length < 10) {
+        const extra = await prisma.priceHistory.findMany({
+          where: { itemId: item.id },
+          orderBy: { date: 'desc' },
+          take: 10 - priceRecords.length,
+        });
+        priceRecords = priceRecords.concat(
+          extra.map(h => ({ high: h.avgHigh, low: h.avgLow, timestamp: h.date }))
+        );
+        priceRecords.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      }
+
+      const latestPrice = priceRecords[0];
       if (!latestPrice.high || !latestPrice.low) continue;
 
       const volume = volumeData[item.id] || 0;
@@ -331,12 +391,12 @@ export class PriceService {
 
       if (margin <= 0 || avgPrice <= 0) continue;
 
-      const recentHighs = item.prices
+      const recentHighs = priceRecords
         .slice(0, 10)
         .map(p => p.high || 0)
         .filter(p => p > 0);
 
-      const recentLows = item.prices
+      const recentLows = priceRecords
         .slice(0, 10)
         .map(p => p.low || 0)
         .filter(p => p > 0);
