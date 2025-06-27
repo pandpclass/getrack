@@ -35,16 +35,28 @@ export function AdvancedFilters({
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Minimum Volume
           </label>
-          <input
-            type="range"
-            min={0}
-            max={5000}
-            step={50}
-            value={minVolume}
-            onChange={(e) => onMinVolumeChange(parseInt(e.target.value))}
-            disabled={disabled}
-            className="w-full h-2 bg-gray-200 rounded-lg cursor-pointer accent-blue-500"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min={0}
+              max={10000}
+              step={50}
+              value={minVolume}
+              onChange={(e) => onMinVolumeChange(parseInt(e.target.value))}
+              disabled={disabled}
+              className="flex-1 h-2 bg-gray-200 rounded-lg cursor-pointer accent-blue-500"
+            />
+            <input
+              type="number"
+              min={0}
+              max={10000}
+              step={50}
+              value={minVolume}
+              onChange={(e) => onMinVolumeChange(parseInt(e.target.value))}
+              disabled={disabled}
+              className="w-24 border-gray-300 rounded-md text-sm p-1"
+            />
+          </div>
           <div className="text-sm text-gray-600 mt-1">
             {minVolume} trades/24h
           </div>

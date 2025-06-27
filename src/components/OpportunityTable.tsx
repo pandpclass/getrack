@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { TrendingUp, TrendingDown, AlertTriangle, Info, BarChart3 } from 'lucide-react';
 import { FlipOpportunity } from '../types/api';
 import { ItemDetailModal } from './ItemDetailModal';
@@ -26,6 +26,28 @@ interface OpportunityTableProps {
  */
 export function OpportunityTable({ opportunities, loading }: OpportunityTableProps) {
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
+  const [sortKey, setSortKey] = useState<keyof FlipOpportunity>('profitAfterTax');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  const sortedOpportunities = useMemo(() => {
+    const items = [...opportunities];
+    items.sort((a, b) => {
+      const valA = a[sortKey] as number | undefined;
+      const valB = b[sortKey] as number | undefined;
+      if (valA === undefined || valB === undefined) return 0;
+      return sortDirection === 'asc' ? valA - valB : valB - valA;
+    });
+    return items;
+  }, [opportunities, sortKey, sortDirection]);
+
+  const handleSort = (key: keyof FlipOpportunity) => {
+    if (sortKey === key) {
+      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDirection('desc');
+    }
+  };
 
   /**
    * Formats large numbers with K/M suffixes for better readability
@@ -168,26 +190,26 @@ export function OpportunityTable({ opportunities, loading }: OpportunityTablePro
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Item
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Prices
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('currentLow')}>
+                  Prices {sortKey === 'currentLow' && (sortDirection === 'asc' ? '▲' : '▼')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Quantity
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('quantity')}>
+                  Quantity {sortKey === 'quantity' && (sortDirection === 'asc' ? '▲' : '▼')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  24h Volume
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('volume')}>
+                  24h Volume {sortKey === 'volume' && (sortDirection === 'asc' ? '▲' : '▼')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Investment
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('totalCost')}>
+                  Investment {sortKey === 'totalCost' && (sortDirection === 'asc' ? '▲' : '▼')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Net Profit
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('profitAfterTax')}>
+                  Net Profit {sortKey === 'profitAfterTax' && (sortDirection === 'asc' ? '▲' : '▼')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  ROI
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('roi')}>
+                  ROI {sortKey === 'roi' && (sortDirection === 'asc' ? '▲' : '▼')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Risk
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('volatility')}>
+                  Risk {sortKey === 'volatility' && (sortDirection === 'asc' ? '▲' : '▼')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Details
@@ -197,7 +219,7 @@ export function OpportunityTable({ opportunities, loading }: OpportunityTablePro
             
             {/* Table Body */}
             <tbody className="bg-white divide-y divide-gray-200">
-              {opportunities.map((opportunity, index) => (
+              {sortedOpportunities.map((opportunity, index) => (
                 <tr 
                   key={opportunity.id} 
                   className="hover:bg-gray-50 transition-colors cursor-pointer"
@@ -232,10 +254,10 @@ export function OpportunityTable({ opportunities, loading }: OpportunityTablePro
 
                   {/* Price Information Column */}
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="text-gray-900">
+                    <div className="text-gray-900" title={`${opportunity.currentLow.toLocaleString()} GP`}>
                       Buy: {formatCurrency(opportunity.currentLow)}
                     </div>
-                    <div className="text-gray-600">
+                    <div className="text-gray-600" title={`${opportunity.currentHigh.toLocaleString()} GP`}>
                       Sell: {formatCurrency(opportunity.currentHigh)}
                     </div>
                   </td>
@@ -256,12 +278,12 @@ export function OpportunityTable({ opportunities, loading }: OpportunityTablePro
                   </td>
 
                   {/* Total Investment Required */}
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900" title={`${opportunity.totalCost.toLocaleString()} GP`}>
                     {formatCurrency(opportunity.totalCost)}
                   </td>
 
                   {/* Net Profit After Tax */}
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap" title={`${opportunity.profitAfterTax.toLocaleString()} GP`}>
                     <div className="text-sm font-medium text-green-600">
                       {formatCurrency(opportunity.profitAfterTax)}
                     </div>
@@ -325,7 +347,7 @@ export function OpportunityTable({ opportunities, loading }: OpportunityTablePro
               </div>
             </div>
             <div>
-              ∞ = Unlimited buy limit • Sorted by composite score (profit + volume + ROI)
+              ∞ = Unlimited buy limit • Click headers to sort
             </div>
           </div>
         </div>
